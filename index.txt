@@ -1,0 +1,1345 @@
+---
+date: 2017-12-26 16:08
+status: public
+title: index
+---
+
+---
+title: 以图搜图服务
+type: reference
+order: 1
+---
+
+以图搜图服务是ProductAI平台上最重要的基础功能之一．可以帮助用户在自己的图片集合上建立索引，从而实现拍照购物，商品管理，商品关联等一系列应用．
+
+## *数据集*
+
+ProductAI以图搜图功能中，基础概念之一是*数据集*，是一组数据的集合（等同于数据库中一张表的概念）。每一个搜索服务就是这样一个数据集上的索引．与传统数据库的类别，*数据集*对应于传统数据库的*数据表*，搜索服务对应于*数据表*上的一个索引．
+
+目前ProductAI仅支持图片数据。*数据集*中的每一张*图片*（等同于*数据表*的每一笔记录）。每一张*图片*使用*url*作为唯一识别ID，不同的*url*意味这两笔不同的数据，同一个*url*会被认定为同一张图片。
+
+每一个*数据集*创建时，会分配到一个唯一的ID，称为**IMAGE_SET_ID**。
+
+### 创建数据集
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_image_set_creating_api()
+resp = api.create_image_set(name='xxx', description='xxx')
+
+if resp.status_code == 200:
+    import json
+    image_set = json.loads(resp.content)
+    image_set_id = image_set['id']
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->createImageSet($name='xxx', $description='xxx');
+```
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+CreateDataSetRequest request = new CreateDataSetRequest("xxx","xxx");
+
+try {
+        CreateDataSetResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+```shell
+curl -X POST -H 'x-ca-version: 1.0' -H 'x-ca-accesskeyid: YOUR_API_KEY' -H 'Content-Type: application/json' -d '{"name": "xxx", "description": "xxx"}' https://api.productai.cn/image_sets/_0000014
+```
+
+#### <a id="q4"></a>输入参数
+
+|参数名称|类型|说明|必选|限制|
+|:-|:-|:-|:-|:-
+|name|字符串|数据集名称|是|最多16个unicode字符，超长的部分会被自动截断|
+|description|字符串|数据集的描述信息|是|最多128个unicode字符，超长的部分会被自动截断|
+
+#### <a id="q5"></a>输出结果
+
+##### 200 HTTP状态码
+
+服务器端成功处理，并返回结果
+
+```js
+{
+  "created_at": "2017-12-13T08:40:51Z",
+  "creator_id": 2031,
+  "description": "yyy",
+  "id": "l5qwws5f",
+  "modified_at": "2017-12-13T08:40:51Z",
+  "n_downloaded": 0,
+  "n_failed": 0,
+  "n_items": 0,
+  "name": "xxx",
+  "request_id": "53361e08-dfe1-11e7-a97c-664c03c7cfbb",
+  "status": "not-downloaded"
+}
+```
+
+|结果字段|类型|说明|
+|:-|:---:|:-
+|created_at| 字符串（年-月-日T小时:分钟:秒Z）|创建UTC时间，精确到秒
+|creator_id| 整数 |创建者ID
+|description| 字符串|数据集的描述信息
+|id| 字符串|数据集唯一ID，后续操作都需要基于此ID进行
+|modified_at| 字符串（年-月-日T小时:分钟:秒Z）|最后修改UTC时间，精确到秒
+|n_downloaded| 整数|数据集中下载完毕的图片数
+|n_failed| 整数|数据集中下载失败的图片数
+|n_items| 整数|数据集中所有的图片数
+|name| 字符串|数据集名称|
+|request_id| 字符串|本次调用的唯一ID，可以用于和ProductAI团队进行联调分析
+|status| 字符串|目前数据集状态．没有任何图片被下载完毕，是not-downloaded．如果有部分图片被下载完毕，部分没有被下载完毕，是downloading．如果所有图片都被下载完毕，或者下载失败，是downloaded．
+
+##### 非200 HTTP状态码
+
+服务器端遇到错误
+
+```js
+{
+  "error_code": 5001,
+  "message": "lineno 1 : `` should be a valid image URL less than or equal to 512 characters in length",
+  "request_id": "810c0180-e00e-11e7-9a0f-b217471bc47d"
+}
+```
+
+|结果字段|类型|说明|
+|:-|:---:|:-
+|error_code| 整数 |表明细分错误代码
+|message| 字符串|详细错误信息
+|request_id| 字符串|本次调用的唯一ID，可以用于和ProductAI团队进行联调分析
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|数据集创建成功
+|400|5004|没有填写数据集名称
+|403|3003|用户可以创建的数据集个数是有上限的，超过了上限，就无法创建新的数据集，收到该错误代码．详情参见[付费帐号和试用帐号有什么区别](/zh/faq/index.html#q5)
+
+### 获取数据集信息
+
+可以通过调用该方法，获得当前数据集下载图片进度信息
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_image_set_api(image_set_id)
+resp = api.get_image_set()
+```
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->getImageset($set_id = 'xxx');
+```
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+GetDataSetInfoRequest request = new GetDataSetInfoRequest("xxx");
+
+try {
+        GetDataSetInfoResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+#### 输入参数
+
+N/a
+
+#### 输出结果
+
+同 [创建数据集输出结果](#q5)
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|数据集信息获取成功
+|403|1002|试图获取一个不属于自己的数据集信息
+|404|2001|数据集不存在
+
+### 修改数据集名称和描述
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_image_set_api(image_set_id)
+
+# 修改数据集的名称
+resp = api.update_image_set(name="xxx")
+
+# 修改数据集的描述
+resp = api.update_image_set(description="xxx")
+
+# 修改数据集的名称和描述
+resp = api.update_image_set(name="xxx", description="xxx")
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->updateImageSetNameDesc($set_id='xxx', $name='xxx', $description='xxx');
+```
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+UpdateDataSetRequest request = new UpdateDataSetRequest("xxx", "xxx", "xxx");
+
+try {
+        UpdateDataSetResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+#### 输入参数
+
+同 [创建数据集输入参数](#q4)
+
+#### 输出结果
+
+同 [创建数据集输出结果](#q5)
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|数据集修改成功
+|400|5004|不能使用空字符串做为数据集名称
+|403|1002|试图修改一个不属于自己的数据集
+|404|2001|数据集不存在
+
+### 删除数据集
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_image_set_api(image_set_id)
+
+# 删除数据集
+resp = api.delete_image_set()
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->removeImageSet($set_id='xxx');
+```
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+DeleteDataSetRequest request = new DeleteDataSetRequest("xxx");
+
+try {
+        DeleteDataSetResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+
+#### 输入参数
+
+N/a
+
+#### 输出结果
+
+N/a
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|204|N/a|数据集删除成功
+|403|1002|试图删除一个不属于自己的数据集
+|403|3001|有依赖于该数据集的搜索服务依旧存在，则不能删除该数据集
+|404|2001|数据集不存在
+
+## 数据
+
+*图片*数据可以包含三个字段：
+
+- *url*，上传图片的链接．目前图片使用该字段作为唯一ID．不同的*url*意味着不同的图片数据．
+- *metadata*，与图片相关的文本信息，会与图片一起作为结果返回．
+- *tags*，与图片相关的标签信息，会与图片一起被搜索，并可用于tag filter．多个tags之间需要用 **|**进行分隔． 
+
+### 向数据集上传单条数据
+
+```python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_image_set_api(IMAGE_SET_ID)
+api.add_image(url, meta, tags='cartoon|square')
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->addImageToSet($set_id='xxx', $image_url='xxx', $meta='xxx', $tags =['xxx']);
+```
+
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+
+ArrayList<String>  xx = new ArrayList<String> ();
+xx.add("xxx");
+DataSetSingleAddByImageUrlRequest request = new DataSetSingleAddByImageUrlRequest("xxx",xx ,"xxx");
+
+try {
+        DeleteDataSetResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+
+#### 输入参数
+
+|参数名称|类型|说明|必选|限制|
+|:-|:-|:-|:-|:-
+|url|字符串|上传图片URL|是|最多512个unicode字符，超长会导致报错|
+|meta|字符串|数据集的描述信息|否|最多512个unicode字符，超长会导致报错|
+|tags|字符串|数据集的描述信息|否|会和图片数据一起进行搜索。可用于用户主动发起的图片加标签过滤的请求。字符串中允许包含多个标签，标签之间以＂&#124;＂作为分隔，例：上衣&#124;短袖&#124;POLO衫。若此参数含有非 ASCII字符集内的内容，请使用 UTF-8 编码。
+
+#### 输出结果
+
+同 [创建数据集输出结果](#q5)
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|数据上传成功
+|400|5001|url超过512个unicode字符，或者url为空，或者meta参数超过512个字符
+|403|1002|试图向一个不属于自己的数据集提交数据
+|404|2001|数据集不存在
+|500|4001|url无法下载成功
+
+### 向数据集批量上传数据
+
+推荐用户使用csv文件来准备图片数据，然后上传。csv文件中每行为1张图片数据．每行3列．各列依次为图片URL，图片*metadata*（可选），*tags*（可选）。请参见[csv文件创建示例](/zh/faq/data.html#q5)。向数据集中批量上传图片示例：
+
+```python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_image_set_api(IMAGE_SET_ID)
+with open('added.csv') as f:
+    api.add_images_in_bulk(f)
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->addImagesToSet($set_id='xxx', $filename='xxx');
+```
+
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+
+DataSetBatchAddRequest request = new DataSetBatchAddRequest("xxx");
+request.setCsvFile(new File(".\\xxx"));
+
+try {
+        DeleteDataSetResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+
+该API服务也支持tar.gz压缩格式．可以通过如下命令将csv文件压缩为tar.gz文件
+
+```shell
+tar zcvf added.tar.gz added.csv
+```
+
+#### 输入参数
+
+|参数名称|类型|说明|必选|限制|
+|:-|:-|:-|:-|:-
+|f|文件|csv文件内容，csv文件格式请参看[csv文件创建示例](/zh/faq/data.html#q5)|是|小于50Mb|
+
+#### 输出结果
+
+同 [创建数据集输出结果](#q5)
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|数据提交成功
+|400|5001|不合法的csv文件，如：包含超过三列，第一列不是一个合法的URL
+|403|1002|试图向一个不属于自己的数据集提交数据
+|404|2001|数据集不存在
+
+### 从数据集中批量删除数据
+
+```python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_image_set_api(IMAGE_SET_ID)
+with open('deleted.csv') as f:
+    api.delete_images_in_bulk(f)
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->removeImagesFromSet($set_id='xxx', $filename='xxx');
+```
+
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+
+DataSetBatchDeleteRequest request = new DataSetBatchDeleteRequest("xxx");
+request.setCsvFile(new File(".\\xxx"));
+
+try {
+        DeleteDataSetResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+#### 输入参数
+
+|参数名称|类型|说明|必选|限制|
+|:-|:-|:-|:-|:-
+|f|文件|csv文件内容，csv文件格式请参看[csv文件创建示例](/zh/faq/data.html#q5)。删除只需要使用URL作为唯一识别，所以该csv文件可以只包含一列，即URL列|是|小于50Mb|
+
+#### 输出结果
+
+同 [创建数据集输出结果](#q5)
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|数据提交成功
+|400|5001|不合法的csv文件，如：包含超过三列，第一列不是一个合法的URL
+|403|1002|试图向一个不属于自己的数据集提交数据
+|404|2001|数据集不存在
+
+### 批量更新图片属性
+
+请使用[向数据集批量上传数据](#向数据集批量上传数据)所介绍的方法完成更新数据集中图片的*metadata*和*tags*信息．ProductAI以图搜图功能使用URL作为每张图片的唯一识别ID．上传数据中，如果某个URL已经在数据库中，则该URL不会重新插入和下载．同时新上传数据中该URL对应的*metadata*和*tags*会覆盖数据库中已有的信息，从而实现更新操作．
+
+## *场景*
+
+针对不同的场景，以图搜图需要使用不同的*场景*模型，比如：在家具数据上训练好的模型，可以在家具图片集上得到一个很好的搜索效果，然后它在服装电商数据上很有可能得到质量很低的结果．与传统数据库对比，一个*场景*对应于*数据表*的一个*索引*．
+
+在创建一个搜索服务上，最重要的选择之一就是，根据自身的数据，选择一个合适的*场景*模型
+
+### 场景列表
+
+目前ProductAI支持的*场景*包括：
+
+|场景名称|场景ID（用于SDK/API服务创建参数scenario）|当前版本|说明|
+|:-|:-|:-|:-|
+|服装|fashion_v5_4|v5.4|针对服装类电商PGC和UGC数据训练的搜索场景，适用于服装类电商以图搜图和商品管理后台应用
+|家具|furniture_v6|v6.0|针对家具类电商PGC和UGC数据训练的搜索场景，适用于家具类电商以图搜图和商品管理后台应用
+|红酒|wine_v2_1|v2.1|针对红酒UGC数据训练的搜索场景，适用于红酒类电商以图搜图和商品管理后台应用
+|纺织面料|material|v1.0|针对面料PGC和UGC花纹图片训练的搜索场景，适用于面料类（偏花纹）电商以图搜图和商品管理后台应用
+|通用图片|general|v1.0|针对PGC整图数据训练的搜索场景，适用于图片网站以图搜图和图片管理后台应用
+
+## *搜索服务*
+
+### 创建搜索服务
+
+有了数据集，并选择了一个合适的*场景*之后，就可以创建一个搜索服务．搜索服务创建完毕之后，用户可以立即使用SDK或者API进行搜索调用．但此时，由于索引刚刚开始，只会有极少的图片完成了索引，可以被搜索出来．随着时间的推移，数据集中的图片会依次全部被服务索引完成．具体完成时间，由数据集中图片数量，该场景模型的复杂程度，以及ProductAI为该场景提供的基础设施规模而定．如果用户希望在规定时间能完成索引，请联系客户经理，申请加急业务处理．
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+
+# 获得需要索引的数据集
+api = cli.get_image_set_api(image_set_id)
+
+# 创建服务
+resp = api.create_service(name='xxx', scenario='fashion_v5_4')
+
+# 获取服务ID
+import json
+service = json.loads(resp.content)
+service_id = service['id']
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->createService($image_set_id='xxx', $name='xxx', $scenario='xxx');
+```
+        
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+CreateSearchServiceRequest request = new CreateSearchServiceRequest("xxx", "xxx", SearchScenario.xxx);
+
+try {
+        CreateSearchServiceResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+#### 输入参数
+
+|参数名称|类型|说明|必选|限制|
+|:-|:-|:-|:-|:-
+|name|字符串|服务名称|必选|32个字符，超过部分会被阶段
+|scenario|字符串|场景类别|必选|必须是[场景列表](#场景列表)中定义的场景之一
+
+#### <a id="q3"></a>输出结果
+
+##### 200 HTTP状态码
+
+```js
+{
+  "created_at": "2017-12-17T13:49:56Z",
+  "creator_id": 2031,
+  "id": "790jvquc",
+  "image_set_id": "0mspcj1m",
+  "indexed_ratio": 0,
+  "last_indexed_time": null,
+  "last_updated_at": null,
+  "n_indexed": 0,
+  "name": "xxx",
+  "request_id": "298f4aea-e331-11e7-a97c-664c03c7cfbb",
+  "scenario": "fashion_v5_4",
+  "status": "running",
+  "status_duration": 0
+}
+```
+
+|结果字段|类型|说明|
+|:-|:---:|:-
+|created_at| 字符串（年-月-日T小时:分钟:秒Z）|创建UTC时间，精确到秒
+|creator_id| 整数 |创建者ID
+|id| 字符串|搜索服务唯一ID，后续操作都需要基于此ID进行
+|image_set_id|字符串|搜索服务基于的数据集ID
+|indexed_ratio|浮点数|索引完成率 = 索引的图片数 / 下完成的图片数
+|last_indexed_time|字符串|搜索服务最后一次索引部署时间
+|last_updated_at| 字符串（年-月-日T小时:分钟:秒Z）|最后修改UTC时间，精确到秒
+|n_indexed| 整数|当前搜索服务线上索引量
+|name| 字符串|搜索服务名称|
+|request_id| 字符串|本次调用的唯一ID，可以用于和ProductAI团队进行联调分析
+|status|字符串|目前搜索服务状态，只有running
+|status_duration|整数|N/a
+|type|整数|N/a
+
+##### 非200 HTTP状态码
+
+```js
+{
+  "error_code": 5003,
+  "message": "Scenarios Not Supported",
+  "request_id": "a0393714-e331-11e7-9a0f-b217471bc47d"
+}
+```
+
+|结果字段|类型|说明|
+|:-|:---:|:-
+|error_code| 整数 |表明细分错误代码
+|message| 字符串|详细错误信息
+|request_id| 字符串|本次调用的唯一ID，可以用于和ProductAI团队进行联调分析
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|查询成功
+|400|5003|scenario中指定的场景不存在
+|403|3004|创建服务数超过上限，请参见[帐号限制](/zh/faq/index.html#q5)
+|409|3002|每个scenario，在同一个数据集上只能创建一个．试图创建第二个服务出错
+
+### 获取搜索服务信息
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_customer_service_api('xxxxxxx')
+resp = api.get_service()
+
+# 解析服务信息
+import json
+service = json.loads(resp.content)
+service_id = service['id']
+service_status = service['status']
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->getService($service_id='xxx');
+```
+        
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+GetServiceInfoRequest request = new GetServiceInfoRequest(_serviceId);
+
+try {
+        GetServiceInfoResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+#### 输入参数
+
+N/a
+
+#### 输出结果
+
+同 [创建搜索服务输出结果](#q5)
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|查询成功
+|403|1003|试图获取他人帐号下的服务
+|404|2002|服务不存在
+
+### 更新搜索服务信息
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_customer_service_api('xxxxxxx')
+api.update_service(name='yyyyyy')
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->updateServiceName($service_id='xxx', $name='xxx');
+```
+        
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+UpdateServiceRequest request = new UpdateServiceRequest("xxx", "xxx");
+
+try {
+        UpdateServiceResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+#### 输入参数
+
+|参数名称|类型|说明|必选|限制|
+|:-|:-|:-|:-|:-
+|name|字符串|服务名称|必选|32个字符，超过部分会被阶段
+
+#### 输出结果
+
+同 [创建搜索服务输出结果](#q5)
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|修改成功
+|403|1003|试图修改他人帐号下的服务
+|404|2002|服务不存在
+
+### 删除搜索服务
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_customer_service_api('xxxxxxx')
+api.delete_service()
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->removeService($service_id='xxx');
+```
+        
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+DeleteServiceRequest request = new DeleteServiceRequest("xxx");
+
+try {
+        DeleteServiceResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+#### 输入参数
+
+N/a
+
+#### 输出结果
+
+N/a
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|204|N/a|删除成功
+|403|1003|试图修改他人帐号下的服务
+|404|2002|服务不存在
+
+### 搜索
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+api = cli.get_image_search_api('xxxxxxxx')
+
+# 用图片URL查询
+resp = api.query(image_url, loc='0.1-0.1-1.0-0.7')
+
+# 或者直接上传本地图片查询
+with open("fashion.jpg") as f_image:
+    resp = api.query(f_image)
+
+# 指定查询结果数量上限，默认为 20
+# 指定查询结果必须有MALE和SHOES标签
+resp = api.query(image_url, count=10, tags=['MALE', 'SHOES'])
+
+# 也可以按如下方式创建标签搜索，"|"等价于"and"操作符
+resp = api.query(image_url, count=10, tags='MALE|SHOES')
+
+# 或者使用复杂标签搜索
+resp = api.query(image_url, count=10, tags={'and': ['MALE', 'SHOES', {'or': ['TMALL', 'TAOBAO']}]})
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+
+//用图片URL查询
+$result = $product_ai->searchImage($service_type='xxx', $service_id='xxx', $image='xxx',loc=[x,x,x,x])
+
+//上传本地文件查询
+$result = $product_ai->searchImage($service_type='xxx', $service_id='xxx', $image='@'.'./xxx.jpg')
+
+//指定查询结果数量上限，默认为 20
+// 指定查询结果必须有MALE和SHOES标签
+$result = $product_ai->searchImage($service_type='xxx', $service_id='xxx', $image='xxx',$count=10,$tags=['MALE', 'SHOES'])
+
+//也可以按如下方式创建标签搜索，"|"等价于"and"操作符
+$result = $product_ai->searchImage($service_type='xxx', $service_id='xxx', $image='@'.'./xxx.jpg',$tags='MALE|SHOES')
+
+//或者使用复杂标签搜索
+$result = $product_ai->searchImage($service_type='xxx', $service_id='xxx', $image='@'.'./xxx.jpg',tags='{"and":["123",{"or":["456"]}]}'
+```
+
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+//用图片URL查询
+ImageSearchByImageUrlRequest request = new ImageSearchByImageUrlRequest("xxx");
+request.setUrl("xxx");
+
+//上传本地文件查询
+ImageSearchByImageFileRequest request = new ImageSearchByImageFileRequest("xxx");
+request.setImageFile(new File("./xxx"));
+
+//指定查询结果数量上限，默认为 20
+// 指定查询结果必须有MALE和SHOES标签
+request.setCount(50);
+
+// 复杂Tag查询示例
+ISearchTag andTag = new AndTag();
+andTag.Add("MALE");
+andTag.Add("SHOES");
+
+ISearchTag orTag = new OrTag();
+orTag.Add("TMALL");
+andTag.Add(orTag);
+
+ITag searchTag = new SearchTag();
+searchTag.setTag(andTag);
+request.setSearchTag(searchTag);
+
+try {
+        DeleteServiceResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+#### 输入参数
+
+|参数名称|类型|说明|必选|限制|
+|:-|:-|:-|:-|:-
+|f_image|文件|Query图片文件内容|是|与image_url参数二选一|
+|image_url|字符串|Query图片的链接|是|与f_image参数二选一|
+|count|整数|指定返回搜索结果数量|否|默认数量10，取值范围1-100，不能超过100|
+|tags|字符串|数据集的描述信息|否|作为搜索结果筛选条件用的关键字标签。所用标签，为用户提交，非自动生成。简单标签使用方法：可以含多个标签，标签之间以“&#124;”分隔。当用户同时输入多个标签时，仅返回同时含有全部给定标签的结果。例：上衣&#124;短袖&#124;POLO 衫。若此参数含有非 ASCII字符集内的内容，请使用 UTF-8 编码。复杂嵌套使用方法：tags参数里是一个查询对象。主要是两种形式，{“or”:[一个或多个子查询]}和{“and”:[一个或多个子查询]}。一个复杂的查询例子tags={“and”:[“上衣”,{“or”:[“蓝色”,”休闲”]}]}
+|loc|字符串|图片中的搜索范围|否|图片标框的位置信息，格式为”x-y-w-h”。其中x,y,w,h 四个子参数的含义为：以待检测图片左上角位置为坐标（0,0），右下角位置为（1,1），x 为所框选框体左上角横坐标，y 为所框选框体左上角纵坐标，w 为所框选框体宽与图片宽度的比值，h为所框选框体高与图片高度的比值。
+
+#### 输出结果
+
+##### 200 HTTP状态码
+
+```js
+{
+    "detect_time": "0.000",
+    "detection_score": null,
+    "download_time": "0.004",
+    "ds": "70awubt0",
+    "is_err": 0,
+    "loc": [
+        0,
+        0,
+        1080,
+        1920
+    ],
+    "most_common_tags": [],
+    "preprocess_time": "0.005",
+    "request_id": "d2605570-e33a-11e7-9a73-92019f9dce87",
+    "results": [
+        ...
+    ],
+    "searchtime": "0.307",
+    "time": "0.324",
+    "type": [
+        "Jumpsuit-romper",
+        "beidaiku",
+        "leisure-pants",
+        "flat-sandals",
+        "bodycon-dress",
+        "Culotte-pants"
+    ],
+    "ver": "20171113-135702"
+}
+```
+
+*results*字段为一个数组，包含全部搜索结果，详解参见[Results字段详解](#q30)
+
+**时间相关字段说明**
+
+|结果字段|类型|说明|
+|:-|:---:|:-
+|detect_time|字符串|检测服务时间消耗，单位为秒
+|download_time|字符串|图片下载时间消耗，单位为秒
+|preprocess_time|字符串|图片搜索前，预处理时间消耗，单位为秒
+|searchtime|字符串|搜索时间消耗，单位为秒
+|time|字符串|服务器端全部时间消耗，单位为秒
+
+**检测器相关字段说明**
+
+|结果字段|类型|说明|
+|:-|:---:|:-
+|detect_time|字符串|检测服务时间消耗，单位为秒
+|detection_score|浮点数|检测服务返回的置信度
+|loc|数组|检测服务返回，图中最有可能的搜索目标物体，四个数值依次为x, y, w, h
+|type|数组|检测服务返回，图中最有可能的物体类别
+
+**其他相关字段说明**
+
+|结果字段|类型|说明|
+|:-|:---:|:-
+|ds|字符串|将废弃，请勿使用
+|is_err|整数|将废弃，请勿使用
+|most_common_tags|数组|详细使用，请参见[ret_img_tags使用](#ret-img-tags使用)
+|request_id| 字符串 |本次请求的唯一识别ID，用于和ProductAI平台进行联调诊断
+|ver|字符串|索引版本号
+
+<a id="q30"></a>**Results字段详解**
+
+```js
+{
+    "metadata": "131",
+    "score": 0.5732779921465632,
+    "url": "http://xxx/131/ab505d2fd40e17f64397c796adfb6a8b.jpg",
+    "tags": [
+        "FEMALE",
+        "FOREVER21",
+        "ONE-PIECE"
+    ]
+}
+```
+
+|结果字段|类型|说明|
+|:-|:---:|:-
+|url|字符串|搜索结果图片对应的链接地址
+|score|浮点数|与Query图片的相似度
+|metadata|字符串|为被搜索出来的图片索引时上传的*metadata*．详情参见[*metadata*使用](#metadata使用)
+|tags|数组|包含被搜索图片上传时，包含的*tags*数据．详情参见[ret_img_tags使用](#ret-img-tags使用)
+
+##### 非200 HTTP状态码
+
+```js
+{
+    "error_code": 1004, 
+    "message": "Image Downloading Not Found", 
+    "request_id": "eccff8dc-b86c-11e7-ab03-b66791ba711f"
+}
+```
+
+|结果字段|类型|说明|
+|:-|:---:|:-
+|error_code| 整数 |表明细分错误代码
+|message| 字符串|详细错误信息
+|request_id| 字符串|本次调用的唯一ID，可以用于和ProductAI团队进行联调分析
+
+#### 错误信息
+
+API和SDK使用http状态码来通知客户端本次调用成功和失败
+
+|http状态码|error_code|说明|
+|:-|:-|:-
+|200|N/a|查询成功
+|400|5001|不合法的csv文件，如：包含超过三列，第一列不是一个合法的URL
+|403|1002|试图向一个不属于自己的数据集提交数据
+|404|2001|数据集不存在
+|429|N/a|调用超过并发限制，请参看[并发限制错误](/zh/faq/error.html#q2)
+
+## 精准匹配服务
+
+精准匹配是一类特殊的以图搜图场景。会在普通的以图搜图模型之后，对结果做进一步算法筛选和算法重排步骤，从而返回只和用户Query图片高度匹配的结果。目前支持两种场景[创意图片精准匹配](#创意图片精准匹配)和[电商商品图片精准匹配](#电商商品图片精准匹配)。
+
+因为精准匹配服务也是以图搜图服务，所以所有[搜索服务](#搜索服务)的操作均适用于精准匹配服务。
+
+### 创意图片精准匹配
+
+创意图像精准匹配服务为用户数据集中的创意摄影、艺术设计、绘画作品及影视画面等图片建立索引。使得用户通过创意图片精准匹配搜索API提交图片后，可在建立好的索引中找到与所提交图片完全相同、或是原图相同但经过小幅修改（增加水印、文字、滤镜或进行小规模修图）的图片。本服务可用于创意图片版权保护、外观版权保护、影视内容查询等场景。
+
+|Query图片|搜索结果（水印，旋转，剪切，放缩，镜像变换，颜色空间变换等，均可以搜索出来）
+|-|-|
+|![示例图1](https://cdn.malong.com/web/help/091827315-2.jpg)|![示例图2](https://cdn.malong.com/web/help/091827315-3.jpg)
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+
+# 获得需要索引的数据集
+api = cli.get_image_set_api(image_set_id)
+
+# 创建服务
+resp = api.create_service(name='xxx', scenario='dedupe_tuku_v2')
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->createService($image_set_id='xxx', $name='xxx', $scenario='dedupe_tuku_v2');
+```
+        
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+CreateSearchServiceRequest request = new CreateSearchServiceRequest("xxx", "xxx", "dedupe_tuku_v2");
+
+try {
+        CreateSearchServiceResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+### 电商商品图片精准匹配
+
+商品图像精准匹配服务为用户数据集中的商品图片建立索引，使得用户通过商品图片精准匹配搜索API提交图片后，可在建立好的索引中找到与所提交图片完全相同、或是原图相同但经过小幅修改（增加水印、文字、滤镜或进行小规模修图）的图片。本服务可用于追踪商品摄影图片盗用、同款商品比价等场景。
+
+|Query图片|搜索结果（即使图片添加了水印，依旧能够匹配到同款商品图）
+|-|-|
+|![示例图1](https://cdn.malong.com/web/help/q.jpeg)|![示例图2](https://cdn.malong.com/web/help/r.jpg)
+
+|Query图片|搜索结果（即使图片中模特姿势发生变化，依旧能够匹配到同款商品图）
+|-|-|
+|![示例图1](https://cdn.malong.com/web/help/q3.jpeg)|![示例图2](https://cdn.malong.com/web/help/q4.jpg)
+
+```Python
+from productai import Client
+
+cli = Client(ACCESS_KEY_ID, SECRET_KEY)
+
+# 获得需要索引的数据集
+api = cli.get_image_set_api(image_set_id)
+
+# 创建服务
+resp = api.create_service(name='xxx', scenario='dedupe_v2')
+```
+
+```php
+use ProductAI;
+$product_ai = new ProductAI\API($access_key_id='xxx', $secret_key='xxx');
+$result = $product_ai->createService($image_set_id='xxx', $name='xxx', $scenario='dedupe_v2');
+```
+        
+```java
+IProfile profile = new DefaultProfile();
+profile.setAccessKeyId("xxx");
+profile.setSecretKey("xxx");
+profile.setVersion("1");
+profile.setGlobalLanguage(LanguageType.Chinese);
+
+IWebClient client = new DefaultProductAIClient(profile);
+CreateSearchServiceRequest request = new CreateSearchServiceRequest("xxx", "xxx", "dedupe_v2");
+
+try {
+        CreateSearchServiceResponse response = client.getResponse(request);
+        String base64Json = response.getResponseBase64String();
+
+        String json = new String(new BASE64Decoder().decodeBuffer(base64Json));
+        System.out.print(json);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+```
+
+## 高阶功能
+
+### *metadata*使用
+
+*数据集*中的任何一张图片都可以有一个 *metadata*信息。信息可以是不包含逗号的任意字符串。当该张图片被搜索出来时，该*metadata*信息会被一并返回给客户。
+
+#### 建议使用方案
+
+1. 图片对应产品的产品ID，用户搜索出该图片后，可以使用 *metadata*作为ID，在自己的数据中搜索获取产品详细信息。
+1. 图片对应产品链接，用户搜索出该图片后，可以使用 *metadata*作为链接进行跳转。
+1. 图片对应产品的详细信息（可以使用json格式包装），用户搜索出该图片后，可以使用 *metadata*解析出产品详情，避免进一步查询数据库造成的调用开销。
+
+### *tags*使用
+
+*数据集*中任何一张图片都可以有一组*tags*。多个*tags*之间需要使用|进行分割，并且每一个tag中都不能包含逗号．搜索服务会将每一个*tag*和其对应的图片相关联索引。当用户进行搜索时，除了提交Query图片外，也可以通过传入*tags*，限制本次搜索只在包含这些*tags*的图片中完成。我们称这样的搜索为 **tag filter**。**tag filter**可以使得搜索更准确，搜索速度也会更加迅速。
+
+#### 建议使用方案
+
+1. 将图片对应的类别放入*tags*中进行索引。搜索时，传入类别信息作为搜索 *tag*，从而限制搜索只在同样类别中的商品搜索，从而使得搜索更准确。
+2. 将图片对应的用户ID放入*tags*中进行索引。搜索时，传入用户ID作为搜索 *tag*，从而限制搜索只能在当前用户的图集中完成。实现个人相册功能。
+
+#### tag搜索语法
+
+目前支持三种语法：
+
+- 将一组*tags*作为数组传入SDK。该语法会限制搜索应在同时包含MALE和SHOES两个*tags*的图片子集中完成。
+
+```Python
+api.query(image_url, tags=['MALE', 'SHOES'])
+```
+
+```php
+$result = $product_ai->searchImage($service_type='xxx', $service_id='xxx', $image='xxx',$tags=['MALE', 'SHOES'])
+```
+
+```java
+ISearchTag andTag = new AndTag();
+andTag.Add("MALE");
+andTag.Add("SHOES");
+ITag searchTag = new SearchTag();
+searchTag.setTag(andTag);
+
+request.setSearchTag(searchTag);
+```
+
+- 将一组*tags*使用|拼接成字符串传入SDK。该语法会限制搜索应在同时包含MALE和SHOES两个*tags*的图片子集中完成。
+
+```Python
+api.query(image_url, tags='MALE|SHOES')
+```
+
+```php
+$result = $product_ai->searchImage($service_type='xxx', $service_id='xxx', $image='xxx',$tags='MALE' | 'SHOES')
+```
+
+```java
+ISearchTag andTag = new AndTag();
+andTag.Add("MALE");
+andTag.Add("SHOES");
+ITag searchTag = new SearchTag();
+searchTag.setTag(andTag);
+
+request.setSearchTag(searchTag);
+```
+
+- 支持简单**and**和**or**组成的表达式树。如下图会限制搜索在，同时包含MALE，SHOES，TMALL的图片子集，或者同时包含MALE，SHOES, TAOBAO的图片子集中完成
+
+```Python
+api.query(image_url, tags={'and': ['MALE', 'SHOES', {'or': ['TMALL', 'TAOBAO']}]})
+```
+
+```php
+$result = $product_ai->searchImage($service_type='xxx', $service_id='xxx', $image='@'.'./xxx.jpg',tags='{"and":["MALE", "SHOES",{"or":["TMALL","TAOBAO"]}]}'
+```
+
+```java
+ISearchTag andTag = new AndTag();
+andTag.Add("MALE");
+andTag.Add("SHOES");
+
+ISearchTag orTag = new OrTag();
+orTag.Add("TMALL");
+orTag.Add("TAOBAO");
+
+andTag.Add(orTag);
+ITag searchTag = new SearchTag();
+searchTag.setTag(andTag);
+
+request.setSearchTag(searchTag);
+```
+### *loc*使用
+
+```Python
+# loc参数使用相对位置，格式x-y-w-h，每一个值都是大于0，小于1的浮点数
+resp = api.query(image_url, loc='0.1-0.1-1.0-0.7') 
+```
+
+```php
+$result = $product_ai->searchImage($service_type ='xxx', $service_id = 'xxx', $image = 'xxx',$loc=[0.0,0.0,0.5,0.8]
+```
+
+```java
+request.setLoc("0.1-0.1-1-1");
+```
+
+>图片标框的位置信息，格式为”x-y-w-h”。其中x,y,w,h 四个子参数的含义为：以待检测图片左上角位置为坐标（0,0），右下角位置为（1,1），x 为所框选框体左上角横坐标，y 为所框选框体左上角纵坐标，w 为所框选框体宽与图片宽度的比值，h为所框选框体高与图片高度的比值。
+
+用户直接使用*loc*参数实现两个功能：
+
+1. 可以限制搜索区域在*loc*定义的图片区域内完成，从而减少图片中背景物体对搜索的干扰。
+1. 如果图片中包含多个物体，可以通过*loc*指定搜索其中的哪个物体
+
+|Query图片|区域|搜索结果
+|-|-|-
+|![示例图1](https://cdn.malong.com/web/help/1.png)|红色大衣|![示例图2](https://cdn.malong.com/web/help/r1.png)
+|![示例图3](https://cdn.malong.com/web/help/q2.png)|黑色女包|![示例图4](https://cdn.malong.com/web/help/r2.png)
+
+### *ret_img_tags*使用
+
+当用户上传图片时，给每张图片指定了 *tags*信息。则在搜索时，可以指定参数*ret_img_tags=1*，从而返回每一张图对应的*tags*，并且搜索服务会将结果中出现次数最多的*tags*放到*most_common_tags*结果字段中。
+
+```Python
+api.query(image_url, ret_img_tags=1)
+```
+
+返回结果中：
+
+- results数组中的每条结果都会包含一个字段 *tags*，即该条结果上传时，一起提交的*tags*信息。
+- *most_common_tags*数组中包含一组 *tags*，即统计所有返回结果的所有 *tags*，汇总出出现次数最多的 *tags*及其次数。
+
+使用建议：
+
+- 可用于判定图片中可能包含的物体。下例中 *ONE-PIECE*出现了19次，*FEMALE*出现了18次。所以搜索图片中包含 *FEMALE*和*ONE-PIECE*的可能性很大。
+
+```js
+{
+    "detect_time": "1.093",
+    "detection_score": 0.9705721139907837,
+    "download_time": "0.000",
+    "ds": "u70rgsx2",
+    "is_err": 0,
+    "loc": [
+        438,
+        301,
+        1015,
+        1691
+    ],
+    "most_common_tags": [
+        [
+            "ONE-PIECE",
+            19
+        ],
+        [
+            "FEMALE",
+            18
+        ],
+        ...
+    ],
+    "preprocess_time": "0.005",
+    "request_id": "754e5fd8-e3a5-11e7-a97c-664c03c7cfbb",
+    "results": [
+        {
+            "metadata": "",
+            "score": 0.7404570709058489,
+            "tags": [
+                "FEMALE",
+                "FOREVER21",
+                "ONE-PIECE",
+                "JUMPSUIT-ROMPER",
+                "TOP",
+                "TANK-STRAP-TOPS",
+                "FLAT-SANDALS",
+                "SHOES"
+            ],
+            "url": "https://oss-downloader.productai.cn/image_set/tl48ejsd/images/aHR0cDovL3BiZ2Nubm9ydGguYmxvYi5jb3JlLmNoaW5hY2xvdWRhcGkuY24vc3R5bGVhaS1zaG9wcGluZy1pbWctcmF3L2ZlZjc1YTkwMjBkYmNjNTdlYzJkYmQxMzhiMzJiYjU1M2RlYThmMmYuanBn.jpg"
+        },
+        ...
+    ],
+    "searchtime": "0.323",
+    "time": "1.429",
+    "type": [
+        "Jumpsuit-romper",
+        "beidaiku",
+        "leisure-pants",
+        "flat-sandals",
+        "bodycon-dress",
+        "Culotte-pants"
+    ],
+    "ver": "20170730-184346"
+}
+```
