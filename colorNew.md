@@ -312,3 +312,5 @@ request.getOptions().put("return_type", "xxx");
 //获取前景物体颜色分析API
 curl -X POST -H 'x-ca-version: 1.0' -H 'x-ca-accesskeyid: YOUR_API_KEY' -d 'url=http://xxx.jpg&type=foreground&granularity=xxx&return_type=xxx' https://api.productai.cn/color/ _0000073
 ```
+
+#modify colorNew
