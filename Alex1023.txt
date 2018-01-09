@@ -1,0 +1,29 @@
+---
+date:
+status: public
+title: 拾光清春
+---
+
+#API介绍
+作为码隆科技的企业端核心产品，ProductAI是一个让企业自助构建人工智能服务的视觉应用平台。开创全球首个自助式智能图像引擎，实现快速服务创建、扩展和维护。企业可以通过简单、快速的API调用，一站式获得多种人工智能技术服务，实现技术与业务的无缝对接。
+
+#####版本
+1.0.6
+#####传输协议
+HTTPS
+#####域名
+api.productai.cn
+#####SDK下载地址
+https://github.com/MalongTech
+#####签名规则
+>确定需要参与签名计算的字段和对应的值
+
+|姓名|类型|必需|说明|
+|-----|-----|-----|-----|
+|x-ca-version|STRING|True|API版本，当前请填写'1'
+|x-ca-accesskeyid|STRING|True|分配给用户调用API的id。请在对应服务的“测试服务”功能界面或前往账户设置”获取
+|x-ca-timestamp|STRING|True|请求时间戳，从1970年１月１日|开始至现在的秒数，通常为浮点数
+|x-ca-signaturenonce|STRING|True |随机字符串，每次请求必须不一样
+|requestmethod|STRING|True|使用大写POST
+---
+<img src="http://productai-imageset-upload.oss-cn-hangzhou.aliyuncs.com/mkvmb7q9/72aa6d96e86e61ac6ae0513abd0cd89c.jpg" " alt="GitHub" title="GitHub,Social Coding" width="200" height="200" />
